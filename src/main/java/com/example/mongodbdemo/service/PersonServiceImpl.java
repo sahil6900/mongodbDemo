@@ -8,10 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.aggregation.GroupOperation;
-import org.springframework.data.mongodb.core.aggregation.SortOperation;
-import org.springframework.data.mongodb.core.aggregation.UnwindOperation;
+import org.springframework.data.mongodb.core.aggregation.*;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.support.PageableExecutionUtils;
@@ -82,5 +79,19 @@ public class PersonServiceImpl implements PersonService{
         Aggregation aggregation = Aggregation.newAggregation(unwindOperation,sortOperation,groupOperation);
         List<Document> person = mongoTemplate.aggregate(aggregation,Person.class, Document.class).getMappedResults();
         return person;
+    }
+
+    @Override
+    public List<Document> getPopulationCountByCity() {
+        UnwindOperation unwindOperation = Aggregation.unwind("addresses");
+        GroupOperation groupOperation = Aggregation.group("addresses.city").count().as("popcount");
+        SortOperation sortOperation = Aggregation.sort(Sort.Direction.DESC,"popcount");
+        ProjectionOperation projectionOperation = Aggregation.project().andExpression("_id").as("city")
+                .andExpression("popcount").as("count").andExclude("_id");
+
+        Aggregation aggregation = Aggregation.newAggregation(unwindOperation,groupOperation,sortOperation,projectionOperation);
+
+        List<Document> documents = mongoTemplate.aggregate(aggregation,Person.class,Document.class).getMappedResults();
+         return documents;
     }
 }
